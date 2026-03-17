@@ -1,0 +1,22 @@
+[project]
+name = "smak"
+version = "0.1.0"
+description = "Workflow smoke tests for GitLab CI pipelines"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.28.0",
+    "tenacity>=8.0.0",
+    "rich>=13.0.0",
+    "pytest>=7.0.0",
+    "pytest-xdist>=3.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "critical: tests for the most important hot paths",
+    "slow: tests that take a long time to poll",
+]
+addopts = "--junitxml=report.xml -v"
