@@ -1,6 +1,6 @@
 # smak — workflow smoke tests
 
-Smoke tests for workflow pipelines, designed to run in GitLab CI or GitHub Actions on a schedule.
+Smoke test harness, designed to run in GitLab CI or GitHub Actions on a schedule.
 
 Triggers workflows, polls for results, asserts on outcomes, and notifies on failure (Mattermost + auto-created GitLab/GitHub issues).
 
