@@ -1,0 +1,48 @@
+# .gitlab-ci.yml
+#
+# Schedule this: Settings > CI/CD > Pipeline schedules
+# Recommended: "0 7 * * 1-5" (7am weekdays, before standup)
+#
+# Run all tests in parallel:         pytest -n auto
+# Run only critical hot path tests:  pytest -n auto -m critical
+# Run a single test:                 pytest tests/test_happy_path.py::test_basic_workflow_completes
+
+stages:
+  - smoke-test
+
+smoke-test:
+  stage: smoke-test
+  image: python:3.12-slim
+  variables:
+    # Set these in GitLab CI/CD Variables (Settings > CI/CD > Variables):
+    #   SMOKE_API_BASE_URL
+    #   SMOKE_WORKFLOW_TRIGGER_URL
+    #   SMOKE_MATTERMOST_WEBHOOK
+    #   SMOKE_ENV (default: qa)
+    #   SMOKE_GITLAB_TOKEN       — for auto-creating issues on failure (api scope)
+    #   SMOKE_GITLAB_PROJECT_ID  — numeric project ID (Settings > General)
+    #   SMOKE_GITLAB_URL         — optional, defaults to https://gitlab.com
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  cache:
+    paths:
+      - .pip-cache/
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - pytest -n auto --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+smoke-test-critical:
+  extends: smoke-test
+  script:
+    - pytest -n auto -m critical --junitxml=report.xml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CRITICAL_ONLY == "true"

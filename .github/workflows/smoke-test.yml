@@ -1,0 +1,84 @@
+# .github/workflows/smoke-test.yml
+#
+# Schedule this or run manually from Actions tab.
+# Recommended: "0 7 * * 1-5" (7am UTC weekdays, before standup)
+#
+# Set secrets/variables in Settings > Secrets and variables > Actions:
+#   SMOKE_API_BASE_URL
+#   SMOKE_WORKFLOW_TRIGGER_URL
+#   SMOKE_MATTERMOST_WEBHOOK     (optional)
+#   SMOKE_ENV                    (optional, default: qa)
+#   SMOKE_GITHUB_TOKEN           (optional — for auto-creating issues on failure)
+#   SMOKE_GITHUB_REPO            (optional — owner/repo, defaults to current repo)
+#   SMOKE_GITHUB_URL             (optional — for GHES, defaults to https://api.github.com)
+
+name: Smoke Tests
+
+on:
+  schedule:
+    - cron: "0 7 * * 1-5"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    env:
+      SMOKE_API_BASE_URL: ${{ vars.SMOKE_API_BASE_URL }}
+      SMOKE_WORKFLOW_TRIGGER_URL: ${{ vars.SMOKE_WORKFLOW_TRIGGER_URL }}
+      SMOKE_MATTERMOST_WEBHOOK: ${{ secrets.SMOKE_MATTERMOST_WEBHOOK }}
+      SMOKE_ENV: ${{ vars.SMOKE_ENV || 'qa' }}
+      SMOKE_GITHUB_TOKEN: ${{ secrets.SMOKE_GITHUB_TOKEN }}
+      SMOKE_GITHUB_REPO: ${{ vars.SMOKE_GITHUB_REPO || github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run smoke tests
+        run: pytest -n auto --junitxml=report.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: report.xml
+          retention-days: 30
+
+  smoke-test-critical:
+    if: github.event_name == 'schedule' && vars.CRITICAL_ONLY == 'true'
+    runs-on: ubuntu-latest
+    env:
+      SMOKE_API_BASE_URL: ${{ vars.SMOKE_API_BASE_URL }}
+      SMOKE_WORKFLOW_TRIGGER_URL: ${{ vars.SMOKE_WORKFLOW_TRIGGER_URL }}
+      SMOKE_MATTERMOST_WEBHOOK: ${{ secrets.SMOKE_MATTERMOST_WEBHOOK }}
+      SMOKE_ENV: ${{ vars.SMOKE_ENV || 'qa' }}
+      SMOKE_GITHUB_TOKEN: ${{ secrets.SMOKE_GITHUB_TOKEN }}
+      SMOKE_GITHUB_REPO: ${{ vars.SMOKE_GITHUB_REPO || github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run critical smoke tests
+        run: pytest -n auto -m critical --junitxml=report.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-critical
+          path: report.xml
+          retention-days: 30
