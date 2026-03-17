@@ -2,7 +2,9 @@
 Polling helpers built on tenacity.
 These are just thin wrappers so your tests read cleanly.
 """
-from typing import Any, Callable
+
+from collections.abc import Callable
+from typing import Any
 
 from tenacity import (
     RetryError,
@@ -49,7 +51,7 @@ def poll_for_status(
 
     try:
         return _check()
-    except RetryError:
+    except RetryError as err:
         try:
             final = api.get(path).json()
             actual = final.get(status_field, "unknown")
@@ -59,7 +61,7 @@ def poll_for_status(
         raise PollTimeout(
             f"Timed out after {timeout}s waiting for {status_field}='{expected_status}' "
             f"at {path} (last seen: '{actual}')"
-        )
+        ) from err
 
 
 def poll_until(
@@ -87,5 +89,5 @@ def poll_until(
 
     try:
         return _check()
-    except RetryError:
-        raise PollTimeout(f"Timed out after {timeout}s waiting for: {description}")
+    except RetryError as err:
+        raise PollTimeout(f"Timed out after {timeout}s waiting for: {description}") from err

@@ -2,6 +2,7 @@
 Mattermost notification builder.
 Hooks into pytest via conftest.py to send results automatically.
 """
+
 import requests as http_requests
 from rich.console import Console
 

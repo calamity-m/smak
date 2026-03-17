@@ -3,6 +3,7 @@ Configuration per environment.
 All values come from env vars with sensible defaults.
 Set once in GitLab CI/CD variables and forget about it.
 """
+
 import os
 from dataclasses import dataclass
 

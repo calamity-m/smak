@@ -10,6 +10,7 @@ Requires:
   SMOKE_GITHUB_REPO  — owner/repo (e.g. "acme/smoke-tests")
   SMOKE_GITHUB_URL   — optional, defaults to https://api.github.com (for GHES)
 """
+
 import os
 
 import requests as http_requests
@@ -96,7 +97,10 @@ def create_issues_for_failures(environment: str, failure_details: dict):
                 comment_url = f"{base_url}/repos/{repo}/issues/{issue_number}/comments"
                 body = build_comment_body(environment, details)
                 http_requests.post(
-                    comment_url, headers=headers, json={"body": body}, timeout=10,
+                    comment_url,
+                    headers=headers,
+                    json={"body": body},
+                    timeout=10,
                 )
                 console.print(f"  [dim]GitHub: updated issue #{issue_number} for {test_name}[/dim]")
             else:

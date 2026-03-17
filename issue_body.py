@@ -1,6 +1,7 @@
 """
 Shared issue/comment body builders for GitLab and GitHub.
 """
+
 import os
 
 

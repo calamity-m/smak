@@ -5,10 +5,11 @@ Run all tests in parallel:    pytest -n auto
 Run just critical ones:       pytest -m critical
 Run a single test:            pytest tests/test_happy_path.py::test_basic_workflow_completes
 """
+
 import pytest
 
+from polling import poll_for_status
 from test_data import make_payload
-from polling import poll_for_status, PollTimeout
 
 
 @pytest.mark.critical
@@ -18,18 +19,20 @@ def test_basic_workflow_completes(api, trigger, poll_config, test_context):
     verify the result landed via your microservice API.
     """
     # 1. Build test input
-    payload = make_payload({
-        # Your workflow-specific fields here:
-        # "customer_id": make_uuid(),
-        # "order_type": "standard",
-        # "amount": 100.00,
-    })
+    payload = make_payload(
+        {
+            # Your workflow-specific fields here:
+            # "customer_id": make_uuid(),
+            # "order_type": "standard",
+            # "amount": 100.00,
+        }
+    )
     test_id = payload["test_id"]
     test_context["test_id"] = test_id
     test_context["correlation_id"] = payload["correlation_id"]
 
     # 2. Trigger the workflow
-    result = trigger.start_process(payload)
+    trigger.start_process(payload)
     # Grab whatever ID the trigger returns for lookup:
     # entity_id = result["id"]
     entity_id = test_id  # adjust to match your actual lookup
@@ -52,9 +55,11 @@ def test_basic_workflow_completes(api, trigger, poll_config, test_context):
 @pytest.mark.critical
 def test_workflow_produces_correct_output(api, trigger, poll_config, test_context):
     """Verify the workflow produces the right output data."""
-    payload = make_payload({
-        # "input_value": 42,
-    })
+    payload = make_payload(
+        {
+            # "input_value": 42,
+        }
+    )
     test_id = payload["test_id"]
     test_context["test_id"] = test_id
     test_context["correlation_id"] = payload["correlation_id"]
@@ -74,9 +79,11 @@ def test_workflow_produces_correct_output(api, trigger, poll_config, test_contex
 
 def test_workflow_handles_invalid_input(api, trigger, poll_config, test_context):
     """Verify the workflow handles bad input gracefully."""
-    payload = make_payload({
-        # "amount": -1,  # invalid
-    })
+    payload = make_payload(
+        {
+            # "amount": -1,  # invalid
+        }
+    )
     test_id = payload["test_id"]
     test_context["test_id"] = test_id
     test_context["correlation_id"] = payload["correlation_id"]

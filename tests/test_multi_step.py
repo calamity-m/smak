@@ -4,10 +4,11 @@ Multi-step workflow test.
 For workflows that go through multiple stages, you can
 poll for each stage sequentially, or just poll for the final state.
 """
+
 import pytest
 
-from test_data import make_payload
 from polling import poll_for_status
+from test_data import make_payload
 
 
 @pytest.mark.slow
@@ -16,9 +17,11 @@ def test_multi_step_workflow(api, trigger, poll_config):
     Workflow goes PENDING -> PROCESSING -> COMPLETED.
     Verify it reaches COMPLETED without getting stuck.
     """
-    payload = make_payload({
-        # "workflow_type": "multi_step",
-    })
+    payload = make_payload(
+        {
+            # "workflow_type": "multi_step",
+        }
+    )
     test_id = payload["test_id"]
 
     trigger.start_process(payload)
@@ -45,9 +48,11 @@ def test_multi_step_workflow(api, trigger, poll_config):
 @pytest.mark.slow
 def test_large_batch_workflow(api, trigger, poll_config):
     """Trigger a workflow with a larger dataset — give it more time."""
-    payload = make_payload({
-        # "batch_size": 100,
-    })
+    payload = make_payload(
+        {
+            # "batch_size": 100,
+        }
+    )
     test_id = payload["test_id"]
 
     trigger.start_process(payload)

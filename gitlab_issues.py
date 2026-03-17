@@ -10,6 +10,7 @@ Requires:
   SMOKE_GITLAB_PROJECT_ID — numeric project ID (Settings > General)
   SMOKE_GITLAB_URL        — optional, defaults to https://gitlab.com
 """
+
 import os
 
 import requests as http_requests
@@ -38,7 +39,7 @@ def _ensure_label_exists(base_url: str, project_id: str, headers: dict):
     """Create the label if it doesn't exist yet."""
     url = f"{base_url}/api/v4/projects/{project_id}/labels"
     resp = http_requests.get(url, headers=headers, params={"search": LABEL}, timeout=10)
-    if resp.ok and any(l["name"] == LABEL for l in resp.json()):
+    if resp.ok and any(label["name"] == LABEL for label in resp.json()):
         return
     http_requests.post(
         url,
@@ -96,7 +97,10 @@ def create_issues_for_failures(environment: str, failure_details: dict):
                 comment_url = f"{base_url}/api/v4/projects/{project_id}/issues/{issue_iid}/notes"
                 body = build_comment_body(environment, details)
                 http_requests.post(
-                    comment_url, headers=headers, json={"body": body}, timeout=10,
+                    comment_url,
+                    headers=headers,
+                    json={"body": body},
+                    timeout=10,
                 )
                 console.print(f"  [dim]GitLab: updated issue #{issue_iid} for {test_name}[/dim]")
             else:

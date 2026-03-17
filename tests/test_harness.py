@@ -4,23 +4,24 @@ These run without any external connections — safe to run locally or in CI.
 
     pytest tests/test_harness.py
 """
-from unittest.mock import MagicMock, call, patch
 
-from config import Config
-from test_data import make_payload, make_test_id, make_uuid
-from polling import poll_for_status, poll_until, PollTimeout
-from notifier import build_failure_message, build_success_message
-from issue_body import build_issue_body, build_comment_body
-from gitlab_issues import create_issues_for_failures as gitlab_create_issues
-from github_issues import create_issues_for_failures as github_create_issues
-from clients import APIClient, WorkflowTrigger
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from clients import APIClient, WorkflowTrigger
+from config import Config
+from github_issues import create_issues_for_failures as github_create_issues
+from gitlab_issues import create_issues_for_failures as gitlab_create_issues
+from issue_body import build_comment_body, build_issue_body
+from notifier import build_failure_message, build_success_message
+from polling import PollTimeout, poll_for_status, poll_until
+from test_data import make_payload, make_test_id, make_uuid
 
 # ---------------------------------------------------------------------------
 # test_data
 # ---------------------------------------------------------------------------
+
 
 class TestTestData:
     def test_make_test_id_has_prefix(self):
@@ -60,6 +61,7 @@ class TestTestData:
 # config
 # ---------------------------------------------------------------------------
 
+
 class TestConfig:
     def test_defaults_to_qa(self):
         with patch.dict("os.environ", {}, clear=True):
@@ -74,12 +76,16 @@ class TestConfig:
             assert "staging" in cfg.api_base_url
 
     def test_env_var_overrides(self):
-        with patch.dict("os.environ", {
-            "SMOKE_API_BASE_URL": "https://custom.example.com/api",
-            "SMOKE_WORKFLOW_TRIGGER_URL": "https://custom.example.com/trigger",
-            "SMOKE_POLL_INTERVAL": "10",
-            "SMOKE_POLL_TIMEOUT": "600",
-        }, clear=True):
+        with patch.dict(
+            "os.environ",
+            {
+                "SMOKE_API_BASE_URL": "https://custom.example.com/api",
+                "SMOKE_WORKFLOW_TRIGGER_URL": "https://custom.example.com/trigger",
+                "SMOKE_POLL_INTERVAL": "10",
+                "SMOKE_POLL_TIMEOUT": "600",
+            },
+            clear=True,
+        ):
             cfg = Config.from_env()
             assert cfg.api_base_url == "https://custom.example.com/api"
             assert cfg.workflow_trigger_url == "https://custom.example.com/trigger"
@@ -98,6 +104,7 @@ class TestConfig:
 # ---------------------------------------------------------------------------
 # polling (with mocked API)
 # ---------------------------------------------------------------------------
+
 
 class TestPolling:
     def _mock_api(self, responses: list[dict]):
@@ -127,11 +134,13 @@ class TestPolling:
         assert api.get.call_count == 1
 
     def test_poll_for_status_eventually_matches(self):
-        api = self._mock_api([
-            {"status": "PENDING"},
-            {"status": "PROCESSING"},
-            {"status": "COMPLETED", "result": "done"},
-        ])
+        api = self._mock_api(
+            [
+                {"status": "PENDING"},
+                {"status": "PROCESSING"},
+                {"status": "COMPLETED", "result": "done"},
+            ]
+        )
 
         data = poll_for_status(
             api=api,
@@ -193,6 +202,7 @@ class TestPolling:
 # notifier message building
 # ---------------------------------------------------------------------------
 
+
 class TestNotifier:
     def _results(self, **overrides):
         base = {
@@ -239,11 +249,14 @@ class TestNotifier:
         assert "truncated" in msg["text"]
 
     def test_success_message(self):
-        msg = build_success_message("staging", {
-            "passed": 5,
-            "total": 5,
-            "duration": 8.3,
-        })
+        msg = build_success_message(
+            "staging",
+            {
+                "passed": 5,
+                "total": 5,
+                "duration": 8.3,
+            },
+        )
         assert "PASSED" in msg["text"]
         assert "STAGING" in msg["text"]
         assert "5/5" in msg["text"]
@@ -257,6 +270,7 @@ class TestNotifier:
 # ---------------------------------------------------------------------------
 # issue body (shared)
 # ---------------------------------------------------------------------------
+
 
 class TestIssueBody:
     def _details(self):
@@ -292,6 +306,7 @@ class TestIssueBody:
 # gitlab issues
 # ---------------------------------------------------------------------------
 
+
 class TestGitlabIssues:
     def _failure_details(self):
         return {
@@ -305,11 +320,10 @@ class TestGitlabIssues:
         }
 
     def test_skips_when_no_token(self):
-        with patch.dict("os.environ", {}, clear=True):
-            with patch("gitlab_issues.http_requests") as mock_http:
-                gitlab_create_issues("qa", self._failure_details())
-                mock_http.get.assert_not_called()
-                mock_http.post.assert_not_called()
+        with patch.dict("os.environ", {}, clear=True), patch("gitlab_issues.http_requests") as mock_http:
+            gitlab_create_issues("qa", self._failure_details())
+            mock_http.get.assert_not_called()
+            mock_http.post.assert_not_called()
 
     def test_creates_new_issue_when_none_exists(self):
         env = {
@@ -317,32 +331,31 @@ class TestGitlabIssues:
             "SMOKE_GITLAB_PROJECT_ID": "42",
             "SMOKE_GITLAB_URL": "https://gitlab.example.com",
         }
-        with patch.dict("os.environ", env, clear=True):
-            with patch("gitlab_issues.http_requests") as mock_http:
-                label_resp = MagicMock()
-                label_resp.ok = True
-                label_resp.json.return_value = []
+        with patch.dict("os.environ", env, clear=True), patch("gitlab_issues.http_requests") as mock_http:
+            label_resp = MagicMock()
+            label_resp.ok = True
+            label_resp.json.return_value = []
 
-                label_create_resp = MagicMock()
-                label_create_resp.ok = True
+            label_create_resp = MagicMock()
+            label_create_resp.ok = True
 
-                search_resp = MagicMock()
-                search_resp.ok = True
-                search_resp.json.return_value = []
+            search_resp = MagicMock()
+            search_resp.ok = True
+            search_resp.json.return_value = []
 
-                create_resp = MagicMock()
-                create_resp.ok = True
-                create_resp.json.return_value = {"iid": 99, "web_url": "https://gitlab.example.com/issues/99"}
+            create_resp = MagicMock()
+            create_resp.ok = True
+            create_resp.json.return_value = {"iid": 99, "web_url": "https://gitlab.example.com/issues/99"}
 
-                mock_http.get.side_effect = [label_resp, search_resp]
-                mock_http.post.side_effect = [label_create_resp, create_resp]
+            mock_http.get.side_effect = [label_resp, search_resp]
+            mock_http.post.side_effect = [label_create_resp, create_resp]
 
-                gitlab_create_issues("qa", self._failure_details())
+            gitlab_create_issues("qa", self._failure_details())
 
-                create_call = mock_http.post.call_args_list[-1]
-                assert "issues" in create_call.args[0]
-                assert create_call.kwargs["json"]["title"] == "Smoke test failure: test_basic_workflow_completes"
-                assert "smoke-test-failure" in create_call.kwargs["json"]["labels"]
+            create_call = mock_http.post.call_args_list[-1]
+            assert "issues" in create_call.args[0]
+            assert create_call.kwargs["json"]["title"] == "Smoke test failure: test_basic_workflow_completes"
+            assert "smoke-test-failure" in create_call.kwargs["json"]["labels"]
 
     def test_comments_on_existing_issue(self):
         env = {
@@ -350,35 +363,37 @@ class TestGitlabIssues:
             "SMOKE_GITLAB_PROJECT_ID": "42",
             "SMOKE_GITLAB_URL": "https://gitlab.example.com",
         }
-        with patch.dict("os.environ", env, clear=True):
-            with patch("gitlab_issues.http_requests") as mock_http:
-                label_resp = MagicMock()
-                label_resp.ok = True
-                label_resp.json.return_value = [{"name": "smoke-test-failure"}]
+        with patch.dict("os.environ", env, clear=True), patch("gitlab_issues.http_requests") as mock_http:
+            label_resp = MagicMock()
+            label_resp.ok = True
+            label_resp.json.return_value = [{"name": "smoke-test-failure"}]
 
-                search_resp = MagicMock()
-                search_resp.ok = True
-                search_resp.json.return_value = [{
+            search_resp = MagicMock()
+            search_resp.ok = True
+            search_resp.json.return_value = [
+                {
                     "iid": 42,
                     "title": "Smoke test failure: test_basic_workflow_completes",
-                }]
+                }
+            ]
 
-                comment_resp = MagicMock()
-                comment_resp.ok = True
+            comment_resp = MagicMock()
+            comment_resp.ok = True
 
-                mock_http.get.side_effect = [label_resp, search_resp]
-                mock_http.post.return_value = comment_resp
+            mock_http.get.side_effect = [label_resp, search_resp]
+            mock_http.post.return_value = comment_resp
 
-                gitlab_create_issues("qa", self._failure_details())
+            gitlab_create_issues("qa", self._failure_details())
 
-                comment_call = mock_http.post.call_args_list[-1]
-                assert "/notes" in comment_call.args[0]
-                assert "Still failing" in comment_call.kwargs["json"]["body"]
+            comment_call = mock_http.post.call_args_list[-1]
+            assert "/notes" in comment_call.args[0]
+            assert "Still failing" in comment_call.kwargs["json"]["body"]
 
 
 # ---------------------------------------------------------------------------
 # github issues
 # ---------------------------------------------------------------------------
+
 
 class TestGithubIssues:
     def _failure_details(self):
@@ -393,11 +408,10 @@ class TestGithubIssues:
         }
 
     def test_skips_when_no_token(self):
-        with patch.dict("os.environ", {}, clear=True):
-            with patch("github_issues.http_requests") as mock_http:
-                github_create_issues("qa", self._failure_details())
-                mock_http.get.assert_not_called()
-                mock_http.post.assert_not_called()
+        with patch.dict("os.environ", {}, clear=True), patch("github_issues.http_requests") as mock_http:
+            github_create_issues("qa", self._failure_details())
+            mock_http.get.assert_not_called()
+            mock_http.post.assert_not_called()
 
     def test_creates_new_issue_when_none_exists(self):
         env = {
@@ -405,31 +419,30 @@ class TestGithubIssues:
             "SMOKE_GITHUB_REPO": "acme/smoke-tests",
             "SMOKE_GITHUB_URL": "https://api.github.com",
         }
-        with patch.dict("os.environ", env, clear=True):
-            with patch("github_issues.http_requests") as mock_http:
-                # Label exists
-                label_resp = MagicMock()
-                label_resp.ok = True
+        with patch.dict("os.environ", env, clear=True), patch("github_issues.http_requests") as mock_http:
+            # Label exists
+            label_resp = MagicMock()
+            label_resp.ok = True
 
-                # Search returns no matches
-                search_resp = MagicMock()
-                search_resp.ok = True
-                search_resp.json.return_value = {"items": []}
+            # Search returns no matches
+            search_resp = MagicMock()
+            search_resp.ok = True
+            search_resp.json.return_value = {"items": []}
 
-                # Issue creation succeeds
-                create_resp = MagicMock()
-                create_resp.ok = True
-                create_resp.json.return_value = {"number": 7, "html_url": "https://github.com/acme/smoke-tests/issues/7"}
+            # Issue creation succeeds
+            create_resp = MagicMock()
+            create_resp.ok = True
+            create_resp.json.return_value = {"number": 7, "html_url": "https://github.com/acme/smoke-tests/issues/7"}
 
-                mock_http.get.side_effect = [label_resp, search_resp]
-                mock_http.post.return_value = create_resp
+            mock_http.get.side_effect = [label_resp, search_resp]
+            mock_http.post.return_value = create_resp
 
-                github_create_issues("qa", self._failure_details())
+            github_create_issues("qa", self._failure_details())
 
-                create_call = mock_http.post.call_args_list[-1]
-                assert "issues" in create_call.args[0]
-                assert create_call.kwargs["json"]["title"] == "Smoke test failure: test_basic_workflow_completes"
-                assert "smoke-test-failure" in create_call.kwargs["json"]["labels"]
+            create_call = mock_http.post.call_args_list[-1]
+            assert "issues" in create_call.args[0]
+            assert create_call.kwargs["json"]["title"] == "Smoke test failure: test_basic_workflow_completes"
+            assert "smoke-test-failure" in create_call.kwargs["json"]["labels"]
 
     def test_comments_on_existing_issue(self):
         env = {
@@ -437,36 +450,40 @@ class TestGithubIssues:
             "SMOKE_GITHUB_REPO": "acme/smoke-tests",
             "SMOKE_GITHUB_URL": "https://api.github.com",
         }
-        with patch.dict("os.environ", env, clear=True):
-            with patch("github_issues.http_requests") as mock_http:
-                # Label exists
-                label_resp = MagicMock()
-                label_resp.ok = True
+        with patch.dict("os.environ", env, clear=True), patch("github_issues.http_requests") as mock_http:
+            # Label exists
+            label_resp = MagicMock()
+            label_resp.ok = True
 
-                # Search finds existing issue
-                search_resp = MagicMock()
-                search_resp.ok = True
-                search_resp.json.return_value = {"items": [{
-                    "number": 42,
-                    "title": "Smoke test failure: test_basic_workflow_completes",
-                }]}
+            # Search finds existing issue
+            search_resp = MagicMock()
+            search_resp.ok = True
+            search_resp.json.return_value = {
+                "items": [
+                    {
+                        "number": 42,
+                        "title": "Smoke test failure: test_basic_workflow_completes",
+                    }
+                ]
+            }
 
-                comment_resp = MagicMock()
-                comment_resp.ok = True
+            comment_resp = MagicMock()
+            comment_resp.ok = True
 
-                mock_http.get.side_effect = [label_resp, search_resp]
-                mock_http.post.return_value = comment_resp
+            mock_http.get.side_effect = [label_resp, search_resp]
+            mock_http.post.return_value = comment_resp
 
-                github_create_issues("qa", self._failure_details())
+            github_create_issues("qa", self._failure_details())
 
-                comment_call = mock_http.post.call_args_list[-1]
-                assert "/comments" in comment_call.args[0]
-                assert "Still failing" in comment_call.kwargs["json"]["body"]
+            comment_call = mock_http.post.call_args_list[-1]
+            assert "/comments" in comment_call.args[0]
+            assert "Still failing" in comment_call.kwargs["json"]["body"]
 
 
 # ---------------------------------------------------------------------------
 # clients (structure only, no network)
 # ---------------------------------------------------------------------------
+
 
 class TestClients:
     def test_api_client_strips_trailing_slash(self):

@@ -7,6 +7,7 @@ Provides:
   - Mattermost notifications on completion
   - Parallel execution support via pytest-xdist
 """
+
 import time
 
 import pytest
@@ -26,6 +27,7 @@ console = Console()
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def config():
@@ -74,6 +76,7 @@ def test_context(request):
 # ---------------------------------------------------------------------------
 # Rich output plugin
 # ---------------------------------------------------------------------------
+
 
 class RichTerminalReporter:
     def __init__(self):
@@ -181,12 +184,14 @@ class RichTerminalReporter:
                 body += " | ".join(f"{k}={v}" for k, v in ctx.items()) + "\n\n"
             body += details["longrepr"]
             console.print()
-            console.print(Panel(
-                body,
-                title=f"[red]FAILED: {name}[/red]",
-                border_style="red",
-                expand=True,
-            ))
+            console.print(
+                Panel(
+                    body,
+                    title=f"[red]FAILED: {name}[/red]",
+                    border_style="red",
+                    expand=True,
+                )
+            )
 
     def _send_notification(self):
         config = Config.from_env()
